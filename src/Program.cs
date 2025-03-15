@@ -11,9 +11,11 @@ namespace Kakuro
 {
     class Program
     {
-        static void Main(string[] args) 
+        static void Main(string[] args)
         {
-            Modele_loader.Load_Modle(@"E:\my projects\Kakuro-Solver-AI\Kakuro-Solver-AI\input.txt");
+            string inputFile =  @"E:\my projects\Kakuro-Solver-AI\Kakuro-Solver-AI\input.txt";
+            Model[,] M = Modele_loader.Load_Modle(inputFile);
+            Modele_loader.UI(M);
         }
     }
 }

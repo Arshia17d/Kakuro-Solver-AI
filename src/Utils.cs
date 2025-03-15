@@ -13,52 +13,69 @@ namespace Kakuro
 {
     class Modele_loader
     {
-        public static Model Load_Modle(string file_path)
+        public static Model[,] Load_Modle(string file_path)
         {
-            string[]? all_lines = File.ReadAllLines(file_path);
-            Console.WriteLine(all_lines[2]);
+            string[] all_lines = File.ReadAllLines(file_path);
             var Line1 = all_lines[0].Split(' ');
-            int rows = Convert.ToInt32(Line1[0]);
-            int cols = Convert.ToInt32(Line1[1]);
-            Model M1 = new Model(rows, cols, Model_Type.Black);
+            int rows = int.Parse(Line1[0]); // تعداد سطرها
+            int cols = int.Parse(Line1[1]); // تعداد ستون‌ها
+
+            Model[,] M1 = new Model[rows, cols];
 
             // پر کردن جدول با خانه‌های سفید
-            for (int i = 1; i <= rows; i++)
+            for (int i = 0; i < rows; i++)
             {
-                for (int j = 1; j <= cols; j++)
+                for (int j = 0; j < cols; j++)
                 {
-                    M1 = new Model(i, j, Model_Type.white);
+                    M1[i, j] = new Model(i + 1, j + 1, Model_Type.white); // مقداردهی با اندیس‌های ۱‌بیس
                 }
             }
 
-            // اضافه کردن خانه های سیاه
+            // اضافه کردن خانه‌های سیاه
             int blackCellCount = int.Parse(all_lines[1]);
             int lineIndex = 2;
-            for (int i = 1; i <= blackCellCount; i++, lineIndex++)
+            for (int i = 0; i < blackCellCount; i++, lineIndex++)
             {
                 string[] parts = all_lines[lineIndex].Split(' ');
-                int r = int.Parse(parts[0]);
-                int c = int.Parse(parts[1]);
-                M1 = new Model(r, c, Model_Type.Black);
+                int r = int.Parse(parts[0]) - 1; // تبدیل به ۰‌بیس
+                int c = int.Parse(parts[1]) - 1; // تبدیل به ۰‌بیس
+                M1[r, c] = new Model(r + 1, c + 1, Model_Type.Black); // مقداردهی با اندیس‌های ۱‌بیس
             }
 
-            // اضافه کردن خانه های دارای دیتا
-            int DataCellCount = int.Parse(all_lines[7]);
-            int line_Index_for_data_cell = 8;
-            for (int i = 1; i <= DataCellCount; i++, line_Index_for_data_cell++)
+            // اضافه کردن خانه‌های دارای دیتا
+            int DataCellCount = int.Parse(all_lines[lineIndex]);
+            lineIndex++;
+            for (int i = 0; i < DataCellCount; i++, lineIndex++)
             {
-                string[] parts = all_lines[line_Index_for_data_cell].Split(' ');
-                int r = int.Parse(parts[0]);
-                int c = int.Parse(parts[1]);
+                string[] parts = all_lines[lineIndex].Split(' ');
+                int r = int.Parse(parts[0]) - 1; // تبدیل به ۰‌بیس
+                int c = int.Parse(parts[1]) - 1; // تبدیل به ۰‌بیس
                 int k_L = int.Parse(parts[2]);
                 int K_T = int.Parse(parts[3]);
-                M1 = new Model(r, c, Model_Type.Data)
+
+                M1[r, c] = new Model(r + 1, c + 1, Model_Type.Data) // مقداردهی با اندیس‌های ۱‌بیس
                 {
                     KeyLeft = k_L,
                     KeyTop = K_T
                 };
             }
+
             return M1;
+        }
+
+        public static void UI(Model[,] M)
+        {
+            int rows = M.GetLength(0);
+            int cols = M.GetLength(1);
+
+            for (int i = 0; i < rows; i++)
+            {
+                for (int j = 0; j < cols; j++)
+                {
+                    Console.Write(M[i, j].ToString() + " ");
+                }
+                Console.WriteLine();
+            }
         }
     }
 }
