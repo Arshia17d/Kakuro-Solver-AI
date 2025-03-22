@@ -37,9 +37,9 @@ namespace Kakuro
             for (int i = 0; i < blackCellCount; i++, lineIndex++)
             {
                 string[] parts = all_lines[lineIndex].Split(' ');
-                int r = int.Parse(parts[0]) - 1; // تبدیل به ۰‌بیس
-                int c = int.Parse(parts[1]) - 1; // تبدیل به ۰‌بیس
-                M1[r, c] = new Model(r + 1, c + 1, Model_Type.Black); // مقداردهی با اندیس‌های ۱‌بیس
+                int r = int.Parse(parts[0]) - 1; 
+                int c = int.Parse(parts[1]) - 1; 
+                M1[r, c] = new Model(r + 1, c + 1, Model_Type.Black); 
             }
 
             // اضافه کردن خانه‌های دارای دیتا
@@ -48,12 +48,12 @@ namespace Kakuro
             for (int i = 0; i < DataCellCount; i++, lineIndex++)
             {
                 string[] parts = all_lines[lineIndex].Split(' ');
-                int r = int.Parse(parts[0]) - 1; // تبدیل به ۰‌بیس
-                int c = int.Parse(parts[1]) - 1; // تبدیل به ۰‌بیس
+                int r = int.Parse(parts[0]) - 1; 
+                int c = int.Parse(parts[1]) - 1; 
                 int k_L = int.Parse(parts[2]);
                 int K_T = int.Parse(parts[3]);
 
-                M1[r, c] = new Model(r + 1, c + 1, Model_Type.Data) // مقداردهی با اندیس‌های ۱‌بیس
+                M1[r, c] = new Model(r + 1, c + 1, Model_Type.Data)
                 {
                     KeyLeft = k_L,
                     KeyTop = K_T
