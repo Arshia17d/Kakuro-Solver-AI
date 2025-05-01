@@ -17,46 +17,46 @@ namespace Kakuro
         {
             string[] all_lines = File.ReadAllLines(file_path);
             var Line1 = all_lines[0].Split(' ');
-            int rows = int.Parse(Line1[0]); // تعداد سطرها
-            int cols = int.Parse(Line1[1]); // تعداد ستون‌ها
+            int rows = int.Parse(Line1[0]);
+            int cols = int.Parse(Line1[1]);
 
             Model[,] M1 = new Model[rows, cols];
 
-            // پر کردن جدول با خانه‌های سفید
+            // Fill all with white cells
             for (int i = 0; i < rows; i++)
             {
                 for (int j = 0; j < cols; j++)
                 {
-                    M1[i, j] = new Model(i + 1, j + 1, Model_Type.white); // مقداردهی با اندیس‌های ۱‌بیس
+                    M1[i, j] = new Model(i + 1, j + 1, Model_Type.white);
                 }
             }
 
-            // اضافه کردن خانه‌های سیاه
+            // Read black cells
             int blackCellCount = int.Parse(all_lines[1]);
             int lineIndex = 2;
             for (int i = 0; i < blackCellCount; i++, lineIndex++)
             {
                 string[] parts = all_lines[lineIndex].Split(' ');
-                int r = int.Parse(parts[0]) - 1; 
-                int c = int.Parse(parts[1]) - 1; 
-                M1[r, c] = new Model(r + 1, c + 1, Model_Type.Black); 
+                int r = int.Parse(parts[0]) - 1; // Convert to 0-based
+                int c = int.Parse(parts[1]) - 1;
+                M1[r, c] = new Model(r + 1, c + 1, Model_Type.Black);
             }
 
-            // اضافه کردن خانه‌های دارای دیتا
+            // Read data cells
             int DataCellCount = int.Parse(all_lines[lineIndex]);
             lineIndex++;
             for (int i = 0; i < DataCellCount; i++, lineIndex++)
             {
                 string[] parts = all_lines[lineIndex].Split(' ');
-                int r = int.Parse(parts[0]) - 1; 
-                int c = int.Parse(parts[1]) - 1; 
+                int r = int.Parse(parts[0]) - 1;
+                int c = int.Parse(parts[1]) - 1;
                 int k_L = int.Parse(parts[2]);
                 int K_T = int.Parse(parts[3]);
 
                 M1[r, c] = new Model(r + 1, c + 1, Model_Type.Data)
                 {
-                    KeyLeft = k_L,
-                    KeyTop = K_T
+                    BottonKey = k_L,
+                    RightKey = K_T
                 };
             }
 

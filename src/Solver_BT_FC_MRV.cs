@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace Kakuro
 {
-    class Solver_BT_FC
+    class Solver_BT_FC_MRV
     {
         private Model[,] grid;
         private List<Model> unassigned;
@@ -13,26 +13,26 @@ namespace Kakuro
 
         public int NodeCount => nodeCount;
 
-        public Solver_BT_FC(Model[,] grid)
+        public Solver_BT_FC_MRV(Model[,] grid)
         {
             this.grid = grid;
             int rows = grid.GetLength(0);
             int cols = grid.GetLength(1);
 
-            // Collect unassigned white cells in row-major order
+            // Collect unassigned white cells
             unassigned = new List<Model>();
             for (int i = 0; i < rows; i++)
             {
                 for (int j = 0; j < cols; j++)
                 {
-                    if (grid[i, j].Type == Model_Type.white)
+                    if (grid[i, j].Type == Model_Type.white && grid[i, j].Value == 0)
                     {
                         unassigned.Add(grid[i, j]);
                     }
                 }
             }
 
-            // Preprocess all entries and build cell-to-entry mapping
+            // Preprocess entries and build mapping
             cellEntries = PreprocessEntries();
         }
 
@@ -49,7 +49,7 @@ namespace Kakuro
                     Model cell = grid[i, j];
                     if (cell.Type == Model_Type.Data)
                     {
-                        // Horizontal Entry (Right Key)
+                        // Horizontal entry (Right Key)
                         if (cell.RightKey > 0)
                         {
                             Entry entry = new Entry();
@@ -64,7 +64,7 @@ namespace Kakuro
                                 allEntries.Add(entry);
                         }
 
-                        // Vertical Entry (Bottom Key)
+                        // Vertical entry (Bottom Key)
                         if (cell.BottonKey > 0)
                         {
                             Entry entry = new Entry();
@@ -94,27 +94,36 @@ namespace Kakuro
 
         public bool Solve()
         {
-            return Backtrack(0);
+            nodeCount = 0;
+            return Backtrack();
         }
 
-        private bool Backtrack(int index)
+        private bool Backtrack()
         {
             nodeCount++;
 
-            if (index >= unassigned.Count)
+            if (unassigned.Count == 0)
                 return true;
 
-            Model cell = unassigned[index];
-            List<Entry> entries = cellEntries[cell];
+            // Select cell with minimum remaining values (MRV)
+            Model cell = SelectMRVCell();
 
-            foreach (int value in PossibleValues(entries, cell))
+            List<int> values = PossibleValues(cell);
+
+            foreach (int value in values)
             {
                 cell.Value = value;
 
-                if (IsConsistent(cell, entries))
+                if (IsConsistent(cell))
                 {
-                    if (Backtrack(index + 1))
+                    // Remove cell from unassigned
+                    unassigned.Remove(cell);
+
+                    if (Backtrack())
                         return true;
+
+                    // Restore cell if backtracking
+                    unassigned.Add(cell);
                 }
 
                 cell.Value = 0; // Unassign
@@ -123,10 +132,41 @@ namespace Kakuro
             return false;
         }
 
-        private List<int> PossibleValues(List<Entry> entries, Model cell)
+        private Model SelectMRVCell()
         {
-            HashSet<int> used = new HashSet<int>();
+            Model selected = null;
+            int minValues = int.MaxValue;
 
+            foreach (var cell in unassigned)
+            {
+                List<int> values = PossibleValues(cell);
+                if (values.Count < minValues)
+                {
+                    minValues = values.Count;
+                    selected = cell;
+                }
+                else if (values.Count == minValues)
+                {
+                    // Tie-breaker: row-major order
+                    if (
+                        (cell.Row < selected.Row)
+                        || (cell.Row == selected.Row && cell.Col < selected.Col)
+                    )
+                    {
+                        selected = cell;
+                    }
+                }
+            }
+
+            return selected;
+        }
+
+        private List<int> PossibleValues(Model cell)
+        {
+            List<int> values = new List<int>();
+            List<Entry> entries = cellEntries[cell];
+
+            HashSet<int> used = new HashSet<int>();
             foreach (var entry in entries)
             {
                 foreach (var c in entry.Cells)
@@ -138,21 +178,29 @@ namespace Kakuro
                 }
             }
 
-            List<int> possible = new List<int>();
             for (int v = 1; v <= 9; v++)
             {
                 if (!used.Contains(v))
-                    possible.Add(v);
+                {
+                    cell.Value = v;
+                    if (IsConsistent(cell))
+                    {
+                        values.Add(v);
+                    }
+                }
             }
 
-            return possible;
+            cell.Value = 0;
+            return values;
         }
 
-        private bool IsConsistent(Model cell, List<Entry> entries)
+        private bool IsConsistent(Model cell)
         {
+            List<Entry> entries = cellEntries[cell];
+
             foreach (var entry in entries)
             {
-                HashSet<int> values = new HashSet<int>();
+                HashSet<int> seen = new HashSet<int>();
                 int sum = 0;
                 int assignedCount = 0;
 
@@ -160,31 +208,32 @@ namespace Kakuro
                 {
                     if (c.Value != 0)
                     {
-                        if (values.Contains(c.Value))
-                            return false; // Duplicate
-                        values.Add(c.Value);
+                        if (seen.Contains(c.Value))
+                            return false;
+                        seen.Add(c.Value);
                         sum += c.Value;
                         assignedCount++;
                     }
                 }
 
+                int remaining = entry.Cells.Count - assignedCount;
+
                 if (sum > entry.Key)
                     return false;
 
-                int remainingCells = entry.Cells.Count - assignedCount;
-                if (remainingCells > 0)
+                if (remaining > 0)
                 {
-                    List<int> availableDigits = new List<int>();
+                    List<int> available = new List<int>();
                     for (int d = 1; d <= 9; d++)
                     {
-                        if (!values.Contains(d))
-                            availableDigits.Add(d);
+                        if (!seen.Contains(d))
+                            available.Add(d);
                     }
 
                     if (
                         !CanAchieveSum(
-                            availableDigits,
-                            remainingCells,
+                            available,
+                            remaining,
                             entry.Key - sum,
                             out int minSum,
                             out int maxSum
