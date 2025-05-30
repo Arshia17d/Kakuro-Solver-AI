@@ -22,7 +22,7 @@ namespace Kakuro
 
             Model[,] M1 = new Model[rows, cols];
 
-            // Fill all with white cells
+            // خانه های سفید
             for (int i = 0; i < rows; i++)
             {
                 for (int j = 0; j < cols; j++)
@@ -31,7 +31,7 @@ namespace Kakuro
                 }
             }
 
-            // Read black cells
+            // خانه های سیاه
             int blackCellCount = int.Parse(all_lines[1]);
             int lineIndex = 2;
             for (int i = 0; i < blackCellCount; i++, lineIndex++)
@@ -42,7 +42,7 @@ namespace Kakuro
                 M1[r, c] = new Model(r + 1, c + 1, Model_Type.Black);
             }
 
-            // Read data cells
+            // خونه های دیتا
             int DataCellCount = int.Parse(all_lines[lineIndex]);
             lineIndex++;
             for (int i = 0; i < DataCellCount; i++, lineIndex++)

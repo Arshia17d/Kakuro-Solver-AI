@@ -15,7 +15,7 @@ namespace Kakuro
 
         public int StepCount => stepCount;
 
-        public Solver_MinConflicts(Model[,] grid, int maxSteps = 10000)
+        public Solver_MinConflicts(Model[,] grid, int maxSteps = 100000)
         {
             this.grid = grid;
             this.maxSteps = maxSteps;
