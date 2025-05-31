@@ -6,10 +6,10 @@ namespace Kakuro
 {
     class Solver_BT_FC_AC3
     {
-        private Model[,] grid;
-        private List<Model> unassigned;
-        private Dictionary<Model, List<Entry>> cellEntries;
-        private int nodeCount;
+        private Model[,] grid; // جدول اصلی بازی
+        private List<Model> unassigned; // لیست سلول‌های سفید بدون مقدار
+        private Dictionary<Model, List<Entry>> cellEntries; // نگاشت هر سلول به ورودی‌های مربوطه
+        private int nodeCount; // شمارش گره‌ها برای تحلیل عملکرد
 
         public int NodeCount => nodeCount;
 
@@ -19,7 +19,7 @@ namespace Kakuro
             int rows = grid.GetLength(0);
             int cols = grid.GetLength(1);
 
-            // Collect unassigned white cells
+            // شناسایی و افزودن سلول‌های سفید بدون مقدار
             unassigned = new List<Model>();
             for (int i = 0; i < rows; i++)
             {
@@ -28,16 +28,17 @@ namespace Kakuro
                     Model cell = grid[i, j];
                     if (cell.Type == Model_Type.white && cell.Value == 0)
                     {
-                        cell.Domain = Enumerable.Range(1, 9).ToList(); // Reset domain
+                        cell.Domain = Enumerable.Range(1, 9).ToList(); // دامنه اعداد 1 تا 9
                         unassigned.Add(cell);
                     }
                 }
             }
 
-            // Preprocess entries and build mapping
+            // پردازش ورودی‌ها و ساخت نگاشت سلول به ورودی‌ها
             cellEntries = PreprocessEntries();
         }
 
+        // ساخت نگاشت سلول‌ها به ورودی‌های مربوط به آن‌ها
         private Dictionary<Model, List<Entry>> PreprocessEntries()
         {
             int rows = grid.GetLength(0);
@@ -51,7 +52,7 @@ namespace Kakuro
                     Model cell = grid[i, j];
                     if (cell.Type == Model_Type.Data)
                     {
-                        // Horizontal entry (Right Key)
+                        // ورود افقی (RightKey)
                         if (cell.RightKey > 0)
                         {
                             Entry entry = new Entry() { Key = cell.RightKey };
@@ -65,7 +66,7 @@ namespace Kakuro
                                 allEntries.Add(entry);
                         }
 
-                        // Vertical entry (Bottom Key)
+                        // ورود عمودی (BottomKey)
                         if (cell.BottonKey > 0)
                         {
                             Entry entry = new Entry() { Key = cell.BottonKey };
@@ -82,7 +83,7 @@ namespace Kakuro
                 }
             }
 
-            // Map each white cell to its entries
+            // نگاشت هر سلول به لیست ورودی‌هایی که در آن‌ها حضور دارد
             Dictionary<Model, List<Entry>> cellMap = new Dictionary<Model, List<Entry>>();
             foreach (var cell in unassigned)
             {
@@ -92,61 +93,63 @@ namespace Kakuro
             return cellMap;
         }
 
+        // تابع اصلی حل‌کننده
         public bool Solve()
         {
             nodeCount = 0;
 
-            // Initial AC-3 to reduce domains
+            // اجرای اولیه AC-3 برای کاهش دامنه‌ها
             if (!AC3())
             {
                 Console.WriteLine("❌ AC-3 failed during initialization.");
                 return false;
             }
 
+            // شروع الگوریتم بازگشتی
             return Backtrack();
         }
 
+        // الگوریتم بازگشتی Backtracking
         private bool Backtrack()
         {
             nodeCount++;
 
             if (unassigned.Count == 0)
-                return true;
+                return true; // همه سلول‌ها مقداردهی شده‌اند
 
-            Model cell = unassigned[0]; // No MRV for base BT-FC-AC3
+            Model cell = unassigned[0]; // بدون MRV، اولین سلول
 
-            List<int> values = new List<int>(cell.Domain); // Use current domain
+            List<int> values = new List<int>(cell.Domain); // گرفتن دامنه فعلی
 
             foreach (int value in values)
             {
                 cell.Value = value;
 
-                if (IsConsistent(cell))
+                if (IsConsistent(cell)) // بررسی سازگاری مقدار
                 {
-                    // Remove cell from unassigned
                     unassigned.Remove(cell);
 
-                    // Copy domains before recursion
+                    // ذخیره دامنه‌ها قبل از FC
                     Dictionary<Model, List<int>> savedDomains = SaveDomains();
 
-                    // Apply forward checking
-                    if (ForwardCheck(cell, value))
+                    if (ForwardCheck(cell, value)) // بررسی پیش‌رو
                     {
                         if (Backtrack())
                             return true;
                     }
 
-                    // Restore domains
+                    // بازگردانی دامنه‌ها
                     RestoreDomains(savedDomains);
                     unassigned.Add(cell);
                 }
 
-                cell.Value = 0; // Unassign
+                cell.Value = 0; // بازگردانی مقدار
             }
 
             return false;
         }
 
+        // بررسی سازگاری مقداردهی برای یک سلول
         private bool IsConsistent(Model cell)
         {
             List<Entry> entries = cellEntries[cell];
@@ -162,7 +165,7 @@ namespace Kakuro
                     if (c.Value != 0)
                     {
                         if (seen.Contains(c.Value))
-                            return false;
+                            return false; // تکرار عدد
                         seen.Add(c.Value);
                         sum += c.Value;
                         assignedCount++;
@@ -176,12 +179,10 @@ namespace Kakuro
 
                 if (remaining > 0)
                 {
-                    List<int> available = new List<int>();
-                    for (int d = 1; d <= 9; d++)
-                    {
-                        if (!seen.Contains(d))
-                            available.Add(d);
-                    }
+                    List<int> available = Enumerable
+                        .Range(1, 9)
+                        .Where(d => !seen.Contains(d))
+                        .ToList();
 
                     if (
                         !CanAchieveSum(
@@ -206,6 +207,7 @@ namespace Kakuro
             return true;
         }
 
+        // Forward Checking: حذف مقادیر ناسازگار از دامنه سلول‌های همسایه
         private bool ForwardCheck(Model cell, int value)
         {
             foreach (var entry in cellEntries[cell])
@@ -228,12 +230,7 @@ namespace Kakuro
                 int remaining = entry.Cells.Count - assigned;
                 if (remaining > 0)
                 {
-                    List<int> available = new List<int>();
-                    for (int d = 1; d <= 9; d++)
-                    {
-                        if (d != value)
-                            available.Add(d);
-                    }
+                    List<int> available = Enumerable.Range(1, 9).Where(d => d != value).ToList();
 
                     if (
                         !CanAchieveSum(
@@ -251,11 +248,12 @@ namespace Kakuro
             return true;
         }
 
+        // الگوریتم AC-3 برای کاهش دامنه‌ها با قیدهای دوتایی
         private bool AC3()
         {
             Queue<Tuple<Model, Model>> queue = new Queue<Tuple<Model, Model>>();
 
-            // Build arcs (all pairs in the same entry)
+            // ساخت قوس‌ها: تمام جفت‌ها در یک ورودی
             foreach (var entry in cellEntries.Values.SelectMany(x => x).Distinct())
             {
                 for (int i = 0; i < entry.Cells.Count; i++)
@@ -281,6 +279,7 @@ namespace Kakuro
                     if (xi.Domain.Count == 0)
                         return false;
 
+                    // افزودن مجدد قوس‌های مرتبط به صف
                     foreach (var entry in cellEntries[xi])
                     {
                         foreach (var xk in entry.Cells)
@@ -297,6 +296,7 @@ namespace Kakuro
             return true;
         }
 
+        // حذف مقادیر ناسازگار از دامنه xi نسبت به xj
         private bool Revise(Model xi, Model xj)
         {
             bool revised = false;
@@ -329,6 +329,7 @@ namespace Kakuro
             return revised;
         }
 
+        // ذخیره دامنه‌ها (برای بازگشت بعد از Forward Check)
         private Dictionary<Model, List<int>> SaveDomains()
         {
             Dictionary<Model, List<int>> saved = new Dictionary<Model, List<int>>();
@@ -339,6 +340,7 @@ namespace Kakuro
             return saved;
         }
 
+        // بازگردانی دامنه‌ها
         private void RestoreDomains(Dictionary<Model, List<int>> saved)
         {
             foreach (var kvp in saved)
@@ -347,6 +349,7 @@ namespace Kakuro
             }
         }
 
+        // بررسی اینکه آیا می‌توان با تعدادی رقم متفاوت به مجموع خاصی رسید یا نه
         private bool CanAchieveSum(
             List<int> digits,
             int count,

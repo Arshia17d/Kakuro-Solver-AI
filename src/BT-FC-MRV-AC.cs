@@ -4,22 +4,23 @@ using System.Linq;
 
 namespace Kakuro
 {
+    // کلاس حل‌کننده سودوکو Kakuro با الگوریتم BT + FC + MRV + AC3
     class Solver_BT_FC_MRV_AC
     {
-        private Model[,] grid;
-        private List<Model> unassigned;
-        private Dictionary<Model, List<Entry>> cellEntries;
-        private int nodeCount;
+        private Model[,] grid; // ماتریس جدول بازی
+        private List<Model> unassigned; // لیست خانه‌های سفید حل‌نشده
+        private Dictionary<Model, List<Entry>> cellEntries; // نگاشت هر خانه سفید به لیست گروه‌های مرتبط (افقی و عمودی)
+        private int nodeCount; // تعداد گره‌های بررسی شده (برای آمار)
 
-        public int NodeCount => nodeCount;
+        public int NodeCount => nodeCount; // ویژگی فقط خواندنی برای مشاهده nodeCount
 
+        // سازنده کلاس: مقداردهی اولیه جدول و آماده‌سازی خانه‌ها و گروه‌ها
         public Solver_BT_FC_MRV_AC(Model[,] grid)
         {
             this.grid = grid;
             int rows = grid.GetLength(0);
             int cols = grid.GetLength(1);
 
-            // Collect unassigned white cells
             unassigned = new List<Model>();
             for (int i = 0; i < rows; i++)
             {
@@ -28,16 +29,17 @@ namespace Kakuro
                     Model cell = grid[i, j];
                     if (cell.Type == Model_Type.white && cell.Value == 0)
                     {
-                        cell.Domain = Enumerable.Range(1, 9).ToList(); // Reset domain
+                        cell.Domain = Enumerable.Range(1, 9).ToList(); // بازنشانی دامنه خانه سفید (1 تا 9)
                         unassigned.Add(cell);
                     }
                 }
             }
 
-            // Preprocess entries and build mapping
+            // ساخت نقشهٔ اتصال خانه‌ها به گروه‌هایشان (افقی و عمودی)
             cellEntries = PreprocessEntries();
         }
 
+        // ساخت لیست گروه‌های افقی و عمودی و نگاشت هر خانه سفید به گروه‌های مربوطه‌اش
         private Dictionary<Model, List<Entry>> PreprocessEntries()
         {
             int rows = grid.GetLength(0);
@@ -51,7 +53,7 @@ namespace Kakuro
                     Model cell = grid[i, j];
                     if (cell.Type == Model_Type.Data)
                     {
-                        // Horizontal entry (Right Key)
+                        // گروه افقی
                         if (cell.RightKey > 0)
                         {
                             Entry entry = new Entry() { Key = cell.RightKey };
@@ -65,7 +67,7 @@ namespace Kakuro
                                 allEntries.Add(entry);
                         }
 
-                        // Vertical entry (Bottom Key)
+                        // گروه عمودی
                         if (cell.BottonKey > 0)
                         {
                             Entry entry = new Entry() { Key = cell.BottonKey };
@@ -82,7 +84,7 @@ namespace Kakuro
                 }
             }
 
-            // Map each white cell to its entries
+            // نگاشت هر خانه سفید به گروه‌هایش
             Dictionary<Model, List<Entry>> cellMap = new Dictionary<Model, List<Entry>>();
             foreach (var cell in unassigned)
             {
@@ -92,11 +94,12 @@ namespace Kakuro
             return cellMap;
         }
 
+        // تابع شروع حل
         public bool Solve()
         {
             nodeCount = 0;
 
-            // Initial AC-3 to reduce domains
+            // مرحله اولیه: اعمال AC3 برای کاهش دامنه‌ها
             if (!AC3())
             {
                 Console.WriteLine("❌ AC-3 failed during initialization.");
@@ -106,48 +109,45 @@ namespace Kakuro
             return Backtrack();
         }
 
+        // الگوریتم عقب‌گرد (Backtracking)
         private bool Backtrack()
         {
             nodeCount++;
 
             if (unassigned.Count == 0)
-                return true;
+                return true; // همه خانه‌ها مقداردهی شدند
 
-            // Select cell with minimum remaining values (MRV)
-            Model cell = SelectMRVCell();
+            Model cell = SelectMRVCell(); // انتخاب خانه‌ای با کمترین دامنه
 
-            List<int> values = new List<int>(cell.Domain); // Use current domain
+            List<int> values = new List<int>(cell.Domain);
 
             foreach (int value in values)
             {
-                cell.Value = value;
+                cell.Value = value; // مقداردهی آزمایشی
 
                 if (IsConsistent(cell))
                 {
-                    // Remove cell from unassigned
                     unassigned.Remove(cell);
 
-                    // Save current domains before recursion
                     Dictionary<Model, List<int>> savedDomains = SaveDomains();
 
-                    // Apply forward checking and AC-3
                     if (ForwardCheck(cell, value) && AC3())
                     {
                         if (Backtrack())
                             return true;
                     }
 
-                    // Restore domains
                     RestoreDomains(savedDomains);
                     unassigned.Add(cell);
                 }
 
-                cell.Value = 0; // Unassign
+                cell.Value = 0; // بازگرداندن مقدار
             }
 
-            return false;
+            return false; // هیچ مقدار معتبری پیدا نشد
         }
 
+        // انتخاب خانه‌ای با کمترین دامنه (MRV)
         private Model SelectMRVCell()
         {
             Model selected = null;
@@ -162,7 +162,7 @@ namespace Kakuro
                 }
                 else if (cell.Domain.Count == minDomainSize)
                 {
-                    // Tie-breaker: row-major order
+                    // اولویت با سطر پایین‌تر، سپس ستون چپ‌تر
                     if (
                         (cell.Row < selected.Row)
                         || (cell.Row == selected.Row && cell.Col < selected.Col)
@@ -176,6 +176,7 @@ namespace Kakuro
             return selected;
         }
 
+        // بررسی سازگاری مقدار تخصیص داده‌شده به خانه با گروه‌های مرتبط
         private bool IsConsistent(Model cell)
         {
             List<Entry> entries = cellEntries[cell];
@@ -191,7 +192,7 @@ namespace Kakuro
                     if (c.Value != 0)
                     {
                         if (seen.Contains(c.Value))
-                            return false;
+                            return false; // تکرار عدد ممنوع است
                         seen.Add(c.Value);
                         sum += c.Value;
                         assignedCount++;
@@ -201,7 +202,7 @@ namespace Kakuro
                 int remaining = entry.Cells.Count - assignedCount;
 
                 if (sum > entry.Key)
-                    return false;
+                    return false; // جمع بیشتر از مقدار موردنظر
 
                 if (remaining > 0)
                 {
@@ -228,13 +229,14 @@ namespace Kakuro
                 }
                 else if (sum != entry.Key)
                 {
-                    return false;
+                    return false; // جمع نهایی باید دقیقاً برابر مقدار موردنظر باشد
                 }
             }
 
             return true;
         }
 
+        // بررسی رو به جلو (Forward Checking)
         private bool ForwardCheck(Model cell, int value)
         {
             foreach (var entry in cellEntries[cell])
@@ -280,11 +282,11 @@ namespace Kakuro
             return true;
         }
 
+        // الگوریتم AC-3 برای کاهش دامنه‌ها با استفاده از قیود دوتایی
         private bool AC3()
         {
             Queue<Tuple<Model, Model>> queue = new Queue<Tuple<Model, Model>>();
 
-            // Build arcs (all pairs in the same entry)
             foreach (var entry in cellEntries.Values.SelectMany(x => x).Distinct())
             {
                 for (int i = 0; i < entry.Cells.Count; i++)
@@ -326,6 +328,7 @@ namespace Kakuro
             return true;
         }
 
+        // حذف مقادیر ناسازگار از دامنه xi بر اساس دامنه xj
         private bool Revise(Model xi, Model xj)
         {
             bool revised = false;
@@ -358,6 +361,7 @@ namespace Kakuro
             return revised;
         }
 
+        // ذخیره‌سازی دامنه‌های فعلی برای بازگشت در صورت نیاز
         private Dictionary<Model, List<int>> SaveDomains()
         {
             Dictionary<Model, List<int>> saved = new Dictionary<Model, List<int>>();
@@ -368,6 +372,7 @@ namespace Kakuro
             return saved;
         }
 
+        // بازگردانی دامنه‌ها به حالت ذخیره شده قبلی
         private void RestoreDomains(Dictionary<Model, List<int>> saved)
         {
             foreach (var kvp in saved)
@@ -376,6 +381,7 @@ namespace Kakuro
             }
         }
 
+        // بررسی اینکه آیا با n رقم از لیست digits می‌توان به عدد target رسید یا نه
         private bool CanAchieveSum(
             List<int> digits,
             int count,
@@ -390,17 +396,17 @@ namespace Kakuro
                 return false;
             }
 
-            var sorted = digits.OrderBy(d => d).ToList();
+            var sorted = digits.OrderBy(d => d).ToList(); // مرتب‌سازی لیست اعداد صعودی
             minSum = 0;
             maxSum = 0;
 
             for (int i = 0; i < count; i++)
-                minSum += sorted[i];
+                minSum += sorted[i]; // جمع کوچک‌ترین‌ها
 
             for (int i = digits.Count - 1; i >= digits.Count - count; i--)
-                maxSum += sorted[i];
+                maxSum += sorted[i]; // جمع بزرگ‌ترین‌ها
 
-            return target >= minSum && target <= maxSum;
+            return target >= minSum && target <= maxSum; // آیا target در این بازه قرار دارد؟
         }
     }
 }
